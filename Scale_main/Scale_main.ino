@@ -21,18 +21,23 @@
 //pins:
 const int HX711_dout = 5; //mcu > HX711 dout pin
 const int HX711_sck = 4; //mcu > HX711 sck pin
-const int TASTER=7;
+const int TASTER_TARA=7;
 const int RELAIS=8;
+const int TASTER_SCALE_MODE=9;
 
 const int STATUS_LINE=0;
 const int WEIGHT_LINE=1;
+const int MODE_LINE=2;
 const int calVal_eepromAdress = 0;
-
+const int TIMER=LOW;
+const int SCALE=HIGH;
 
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 
 long t;
+int currentGrindMode=TIMER;
+int scaleModePressed = TIMER;
 
 void setup() {
   Serial.begin(57600); delay(10);
@@ -44,14 +49,26 @@ void setup() {
 
  
 
-  pinMode(TASTER, INPUT);
+  pinMode(TASTER_TARA, INPUT);
+  pinMode(TASTER_SCALE_MODE, INPUT);
   pinMode(RELAIS, OUTPUT);
    
 }
 void loop() {
   static boolean newDataReady = 0;
   const int serialPrintInterval = 0; //increase value to slow down serial print activity
-  int tasterstatus=0;
+  int taraStatus=0;
+  scaleModePressed = digitalRead(TASTER_SCALE_MODE);
+  
+  if(currentGrindMode == scaleModePressed){
+    currentGrindMode = TIMER;
+    printLine(MODE_LINE, "TIMER MODE");
+    delay(120);
+  }else if(scaleModePressed == SCALE){
+    currentGrindMode = SCALE;
+    printLine(MODE_LINE, "SCALE MODE");
+    delay(120);
+  }
   // check for new data/start next conversion:
   if (LoadCell.update()) newDataReady = true;
   // get smoothed value from the dataset:
@@ -60,22 +77,24 @@ void loop() {
        float weight = LoadCell.getData();
       printLine(WEIGHT_LINE,"Gewicht: "+ String(weight,1) );
 
-      if(weight >= 14){
-        digitalWrite(RELAIS, LOW);
-      }else{
+      if(weight >= 14 && currentGrindMode == SCALE){
         digitalWrite(RELAIS, HIGH);
+        delay(2000);
+        weight=0;
+      }else{
+        digitalWrite(RELAIS, LOW);
       }
       newDataReady = 0;
       t = millis();
     }
   }
 
-  tasterstatus=digitalRead(TASTER); //Hier wird der Pin7 ausgelesen (Befehl:digitalRead). Das Ergebnis wird unter der Variable „tasterstatus“ mit dem Wert „HIGH“ für 5Volt oder „LOW“ für 0Volt gespeichert.
-  
-  if (Serial.available() > 0 ||tasterstatus == HIGH) {
+  taraStatus=digitalRead(TASTER_TARA); 
+    
+  if (Serial.available() > 0 ||taraStatus == HIGH) {
     float i;
     char inByte = Serial.read();
-    if (inByte == 't'||tasterstatus == HIGH) LoadCell.tareNoDelay();
+    if (inByte == 't'||taraStatus == HIGH) LoadCell.tareNoDelay();
   }
   // check if last tare operation is complete:
   if (LoadCell.getTareStatus() == true) {
