@@ -22,20 +22,27 @@
 const int HX711_dout = 5; //mcu > HX711 dout pin
 const int HX711_sck = 4; //mcu > HX711 sck pin
 const int taster=7;
+
 const int STATUS_LINE=0;
-//HX711 constructor:
+const int WEIGHT_LINE=1;
+const int calVal_eepromAdress = 0;
+
+
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
-const int calVal_eepromAdress = 0;
+
 long t;
+
 void setup() {
   Serial.begin(57600); delay(10);
-  lcd.init(); //Im Setup wird der LCD gestartet
-  lcd.backlight(); //Hintergrundbeleuchtung einschalten (0 schaltet die Beleuchtung aus).
-  printLine(STATUS_LINE,"Starting...");
+  Serial.println("Setup");
   
-
+  initLcd();
+  printLine(STATUS_LINE,"Starting...");
   calibrateScale();
+
+ 
+
   pinMode(taster, INPUT);
    
 }
@@ -48,14 +55,10 @@ void loop() {
   // get smoothed value from the dataset:
   if (newDataReady) {
     if (millis() > t + serialPrintInterval) {
-      float i = LoadCell.getData();
-      Serial.print("Load_cell output val: ");
-      Serial.println(i);
+       float weight = LoadCell.getData();
+      printLine(WEIGHT_LINE,"Gewicht: "+ String(weight,1) );
       newDataReady = 0;
       t = millis();
-      
-      lcd.setCursor(0,1); //Text soll beim ersten Zeichen in der ersten Reihe beginnen..
-      lcd.print(i); //In der ersten Zeile soll der Text „Test Zeile 1“ angezeigt werden
     }
   }
 
@@ -91,7 +94,19 @@ void calibrateScale(){
 
 void printLine(int line, String text){
   Serial.println(text);
-  lcd.clear();
-  lcd.setCursor(0,line); //Text soll beim ersten Zeichen in der ersten Reihe beginnen..
+  lcd.setCursor(0,line);
+  if(line == STATUS_LINE){
+    lcd.setCursor(0,line); //Text soll beim ersten Zeichen in der ersten Reihe beginnen..
+    lcd.print("                    "); //In der ersten Zeile soll der Text „Test Zeile 1“ angezeigt werden    
+  } else if(line == WEIGHT_LINE){
+  text = text + "     ";
+  }
+  lcd.setCursor(0,line);
   lcd.print(text); //In der ersten Zeile soll der Text „Test Zeile 1“ angezeigt werden
+}
+
+void initLcd(){
+  lcd.init(); 
+  lcd.backlight();
+  lcd.noBlink();
 }
