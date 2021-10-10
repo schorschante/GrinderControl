@@ -21,7 +21,8 @@
 //pins:
 const int HX711_dout = 5; //mcu > HX711 dout pin
 const int HX711_sck = 4; //mcu > HX711 sck pin
-const int taster=7;
+const int TASTER=7;
+const int RELAIS=8;
 
 const int STATUS_LINE=0;
 const int WEIGHT_LINE=1;
@@ -43,7 +44,8 @@ void setup() {
 
  
 
-  pinMode(taster, INPUT);
+  pinMode(TASTER, INPUT);
+  pinMode(RELAIS, OUTPUT);
    
 }
 void loop() {
@@ -57,12 +59,18 @@ void loop() {
     if (millis() > t + serialPrintInterval) {
        float weight = LoadCell.getData();
       printLine(WEIGHT_LINE,"Gewicht: "+ String(weight,1) );
+
+      if(weight >= 14){
+        digitalWrite(RELAIS, HIGH);
+      }else{
+        digitalWrite(RELAIS, LOW);
+      }
       newDataReady = 0;
       t = millis();
     }
   }
 
-  tasterstatus=digitalRead(taster); //Hier wird der Pin7 ausgelesen (Befehl:digitalRead). Das Ergebnis wird unter der Variable „tasterstatus“ mit dem Wert „HIGH“ für 5Volt oder „LOW“ für 0Volt gespeichert.
+  tasterstatus=digitalRead(TASTER); //Hier wird der Pin7 ausgelesen (Befehl:digitalRead). Das Ergebnis wird unter der Variable „tasterstatus“ mit dem Wert „HIGH“ für 5Volt oder „LOW“ für 0Volt gespeichert.
   
   if (Serial.available() > 0 ||tasterstatus == HIGH) {
     float i;
