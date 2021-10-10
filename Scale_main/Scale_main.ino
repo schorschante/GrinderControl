@@ -61,9 +61,9 @@ void loop() {
       printLine(WEIGHT_LINE,"Gewicht: "+ String(weight,1) );
 
       if(weight >= 14){
-        digitalWrite(RELAIS, HIGH);
-      }else{
         digitalWrite(RELAIS, LOW);
+      }else{
+        digitalWrite(RELAIS, HIGH);
       }
       newDataReady = 0;
       t = millis();
