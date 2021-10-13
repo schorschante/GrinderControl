@@ -19,20 +19,22 @@
 #include <Wire.h>  // Wire Bibliothek hochladen
 #include <LiquidCrystal_I2C.h> // Vorher hinzugefügte LiquidCrystal_I2C Bibliothek hochladen
 //pins:
-const int HX711_dout = 5; //mcu > HX711 dout pin
 const int HX711_sck = 4; //mcu > HX711 sck pin
+const int HX711_dout = 5; //mcu > HX711 dout pin
 const int TASTER_TARA=7;
 const int RELAIS=8;
 const int TASTER_SCALE_MODE=9;
+const int POT =A1;
 
 const int STATUS_LINE=0;
 const int WEIGHT_LINE=1;
 const int MODE_LINE=2;
+const int GRAM_LINE=3;
 const int calVal_eepromAdress = 0;
 const int TIMER=LOW;
 const int SCALE=HIGH;
 
-HX711_ADC LoadCell(HX711_dout, HX711_sck);
+HX711_ADC LoadCell(       HX711_dout, HX711_sck);
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 
 long t;
@@ -59,6 +61,11 @@ void loop() {
   const int serialPrintInterval = 0; //increase value to slow down serial print activity
   int taraStatus=0;
   scaleModePressed = digitalRead(TASTER_SCALE_MODE);
+  int toGrind = 25./1023.*analogRead(POT);
+  Serial.println(toGrind);
+
+ 
+  printLine(GRAM_LINE,"Gramm: " + String(toGrind));
   
   if(currentGrindMode == scaleModePressed){
     currentGrindMode = TIMER;
@@ -77,7 +84,7 @@ void loop() {
        float weight = LoadCell.getData();
       printLine(WEIGHT_LINE,"Gewicht: "+ String(weight,1) );
 
-      if(weight >= 14 && currentGrindMode == SCALE){
+      if(weight >= toGrind && currentGrindMode == SCALE){
         digitalWrite(RELAIS, HIGH);
         delay(2000);
         weight=0;
