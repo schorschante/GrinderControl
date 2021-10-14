@@ -59,7 +59,7 @@ void setup() {
     Serial.println("Startup is complete");
   }
 
-  attachInterrupt(digitalPinToInterrupt(HX711_dout), dataReadyISR, FALLING);
+  //attachInterrupt(digitalPinToInterrupt(HX711_dout), dataReadyISR, FALLING);
 }
 
 //interrupt routine:

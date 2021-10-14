@@ -59,15 +59,15 @@ void setup() {
   pinMode(TASTER_TARA, INPUT);
   pinMode(TASTER_SCALE_MODE, INPUT);
   pinMode(RELAIS, OUTPUT);
+  //attachInterrupt(digitalPinToInterrupt(HX711_dout), dataReadyISR, FALLING);
+
 
 }
 void loop() {
   static boolean newDataReady = 0;
   const int serialPrintInterval = 0; //increase value to slow down serial print activity
-  int taraStatus = 0;
   scaleModePressed = digitalRead(TASTER_SCALE_MODE);
   int toGrind = 25. / 1023.*analogRead(POT);
-  Serial.println(toGrind);
 
 
   printLine(GRAM_LINE, "Gramm: " + String(toGrind));
@@ -100,18 +100,23 @@ void loop() {
     }
   }
 
-  taraStatus = digitalRead(TASTER_TARA);
 
-  if (Serial.available() > 0 || taraStatus == HIGH) {
-    float i;
-    char inByte = Serial.read();
-    if (inByte == 't' || taraStatus == HIGH) LoadCell.tareNoDelay();
-  }
+  if (digitalRead(TASTER_TARA) == HIGH) LoadCell.tareNoDelay();
+
   // check if last tare operation is complete:
   if (LoadCell.getTareStatus() == true) {
     printLine(STATUS_LINE, "Tare complete");
   }
 }
+
+//interrupt routine:
+void dataReadyISR() {
+
+  if (LoadCell.update()) {
+    Serial.println("interupt: " + String(LoadCell.getData()));
+  }
+}
+
 
 void calibrateScale() {
   LoadCell.begin();
