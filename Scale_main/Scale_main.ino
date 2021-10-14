@@ -21,57 +21,60 @@
 //pins:
 const int HX711_sck = 4; //mcu > HX711 sck pin
 const int HX711_dout = 5; //mcu > HX711 dout pin
-const int TASTER_TARA=7;
-const int RELAIS=8;
-const int TASTER_SCALE_MODE=9;
-const int POT =A1;
+const int TASTER_TARA = 7;
+const int RELAIS = 8;
+const int TASTER_SCALE_MODE = 9;
+const int POT = A1;
 
-const int STATUS_LINE=0;
-const int WEIGHT_LINE=1;
-const int MODE_LINE=2;
-const int GRAM_LINE=3;
+const int STATUS_LINE = 0;
+const int WEIGHT_LINE = 1;
+const int MODE_LINE = 2;
+const int GRAM_LINE = 3;
 const int calVal_eepromAdress = 0;
-const int TIMER=LOW;
-const int SCALE=HIGH;
+const int TIMER = LOW;
+const int SCALE = HIGH;
+const int GRIND = HIGH;
+const int STOP_GRIND = LOW;
+
 
 HX711_ADC LoadCell(       HX711_dout, HX711_sck);
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 
 long t;
-int currentGrindMode=TIMER;
+int currentGrindMode = TIMER;
 int scaleModePressed = TIMER;
 
 void setup() {
   Serial.begin(57600); delay(10);
   Serial.println("Setup");
-  
+
   initLcd();
-  printLine(STATUS_LINE,"Starting...");
+  printLine(STATUS_LINE, "Starting...");
   calibrateScale();
 
- 
+
 
   pinMode(TASTER_TARA, INPUT);
   pinMode(TASTER_SCALE_MODE, INPUT);
   pinMode(RELAIS, OUTPUT);
-   
+
 }
 void loop() {
   static boolean newDataReady = 0;
   const int serialPrintInterval = 0; //increase value to slow down serial print activity
-  int taraStatus=0;
+  int taraStatus = 0;
   scaleModePressed = digitalRead(TASTER_SCALE_MODE);
-  int toGrind = 25./1023.*analogRead(POT);
+  int toGrind = 25. / 1023.*analogRead(POT);
   Serial.println(toGrind);
 
- 
-  printLine(GRAM_LINE,"Gramm: " + String(toGrind));
-  
-  if(currentGrindMode == scaleModePressed){
+
+  printLine(GRAM_LINE, "Gramm: " + String(toGrind));
+
+  if (currentGrindMode == scaleModePressed) {
     currentGrindMode = TIMER;
     printLine(MODE_LINE, "TIMER MODE");
     delay(120);
-  }else if(scaleModePressed == SCALE){
+  } else if (scaleModePressed == SCALE) {
     currentGrindMode = SCALE;
     printLine(MODE_LINE, "SCALE MODE");
     delay(120);
@@ -81,35 +84,33 @@ void loop() {
   // get smoothed value from the dataset:
   if (newDataReady) {
     if (millis() > t + serialPrintInterval) {
-       float weight = LoadCell.getData();
-      printLine(WEIGHT_LINE,"Gewicht: "+ String(weight,1) );
+      float weight = LoadCell.getData();
+      printLine(WEIGHT_LINE, "Gewicht: " + String(weight, 1) );
 
-      if(weight >= toGrind && currentGrindMode == SCALE){
-        digitalWrite(RELAIS, HIGH);
-        delay(2000);
-        weight=0;
-      }else{
-        digitalWrite(RELAIS, LOW);
+      if (weight >= toGrind && currentGrindMode == SCALE) {
+          digitalWrite(RELAIS, STOP_GRIND);
+      } else {
+        digitalWrite(RELAIS, GRIND);
       }
       newDataReady = 0;
       t = millis();
     }
   }
 
-  taraStatus=digitalRead(TASTER_TARA); 
-    
-  if (Serial.available() > 0 ||taraStatus == HIGH) {
+  taraStatus = digitalRead(TASTER_TARA);
+
+  if (Serial.available() > 0 || taraStatus == HIGH) {
     float i;
     char inByte = Serial.read();
-    if (inByte == 't'||taraStatus == HIGH) LoadCell.tareNoDelay();
+    if (inByte == 't' || taraStatus == HIGH) LoadCell.tareNoDelay();
   }
   // check if last tare operation is complete:
   if (LoadCell.getTareStatus() == true) {
-    printLine(STATUS_LINE,"Tare complete");
+    printLine(STATUS_LINE, "Tare complete");
   }
 }
 
-void calibrateScale(){
+void calibrateScale() {
   LoadCell.begin();
   float calibrationValue; // calibration value (see example file "Calibration.ino")
   calibrationValue = 472.78; // uncomment this if you want to set the calibration value in the sketch
@@ -117,30 +118,30 @@ void calibrateScale(){
   boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
   LoadCell.start(stabilizingtime, _tare);
   if (LoadCell.getTareTimeoutFlag()) {
-    printLine(STATUS_LINE,"Timeout, check MCU>HX711 wiring and pin designations");
+    printLine(STATUS_LINE, "Timeout, check MCU>HX711 wiring and pin designations");
     while (1);
   }
   else {
     LoadCell.setCalFactor(calibrationValue); // set calibration value (float)
-    printLine(STATUS_LINE,"Startup is complete");
+    printLine(STATUS_LINE, "Startup is complete");
   }
 }
 
-void printLine(int line, String text){
+void printLine(int line, String text) {
   Serial.println(text);
-  lcd.setCursor(0,line);
-  if(line == STATUS_LINE){
-    lcd.setCursor(0,line); //Text soll beim ersten Zeichen in der ersten Reihe beginnen..
-    lcd.print("                    "); //In der ersten Zeile soll der Text „Test Zeile 1“ angezeigt werden    
-  } else if(line == WEIGHT_LINE){
-  text = text + "     ";
+  lcd.setCursor(0, line);
+  if (line == STATUS_LINE) {
+    lcd.setCursor(0, line); //Text soll beim ersten Zeichen in der ersten Reihe beginnen..
+    lcd.print("                    "); //In der ersten Zeile soll der Text „Test Zeile 1“ angezeigt werden
+  } else if (line == WEIGHT_LINE) {
+    text = text + "     ";
   }
-  lcd.setCursor(0,line);
+  lcd.setCursor(0, line);
   lcd.print(text); //In der ersten Zeile soll der Text „Test Zeile 1“ angezeigt werden
 }
 
-void initLcd(){
-  lcd.init(); 
+void initLcd() {
+  lcd.init();
   lcd.backlight();
   lcd.noBlink();
 }
