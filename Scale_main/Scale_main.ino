@@ -20,7 +20,7 @@
 #include <LiquidCrystal_I2C.h> // Vorher hinzugefügte LiquidCrystal_I2C Bibliothek hochladen
 //pins:
 const int HX711_sck = 4; //mcu > HX711 sck pin
-const int HX711_dout = 5; //mcu > HX711 dout pin
+const int HX711_dout = 2; //mcu > HX711 dout pin
 const int TASTER_TARA = 7;
 const int RELAIS = 8;
 const int TASTER_SCALE_MODE = 9;
@@ -51,6 +51,8 @@ void setup() {
   initLcd();
   printLine(STATUS_LINE, "Starting...");
   calibrateScale();
+  printLine(MODE_LINE, "TIMER MODE");
+
 
 
 
@@ -69,15 +71,16 @@ void loop() {
 
 
   printLine(GRAM_LINE, "Gramm: " + String(toGrind));
-
-  if (currentGrindMode == scaleModePressed) {
-    currentGrindMode = TIMER;
-    printLine(MODE_LINE, "TIMER MODE");
-    delay(120);
-  } else if (scaleModePressed == SCALE) {
-    currentGrindMode = SCALE;
-    printLine(MODE_LINE, "SCALE MODE");
-    delay(120);
+  if (scaleModePressed) {
+    if (currentGrindMode == scaleModePressed) {
+      currentGrindMode = TIMER;
+      delay(500);
+      printLine(MODE_LINE, "TIMER MODE");
+    } else if (scaleModePressed == SCALE) {
+      currentGrindMode = SCALE;
+      printLine(MODE_LINE, "SCALE MODE");
+      delay(500);
+    }
   }
   // check for new data/start next conversion:
   if (LoadCell.update()) newDataReady = true;
@@ -88,7 +91,7 @@ void loop() {
       printLine(WEIGHT_LINE, "Gewicht: " + String(weight, 1) );
 
       if (weight >= toGrind && currentGrindMode == SCALE) {
-          digitalWrite(RELAIS, STOP_GRIND);
+        digitalWrite(RELAIS, STOP_GRIND);
       } else {
         digitalWrite(RELAIS, GRIND);
       }

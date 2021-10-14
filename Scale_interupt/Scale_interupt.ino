@@ -71,7 +71,7 @@ void dataReadyISR() {
 }
 
 void loop() {
-  const int serialPrintInterval = 0; //increase value to slow down serial print activity
+  const int serialPrintInterval = 10; //increase value to slow down serial print activity
 
   // get smoothed value from the dataset:
   if (newDataReady) {
