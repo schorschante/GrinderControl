@@ -64,13 +64,44 @@ void setup() {
 
 }
 void loop() {
+  handleGrindMode();
+  handleGrind(calcGramsToGrind()); 
+  handleTara();
+}
+
+//interrupt routine:
+void dataReadyISR() {
+
+  if (LoadCell.update()) {
+    Serial.println("interupt: " + String(LoadCell.getData()));
+  }
+}
+
+void handleGrind(int gramsToGrind){
   static boolean newDataReady = 0;
   const int serialPrintInterval = 0; //increase value to slow down serial print activity
-  scaleModePressed = digitalRead(TASTER_SCALE_MODE);
-  int toGrind = 25. / 1023.*analogRead(POT);
 
+  // check for new data/start next conversion:
+  if (LoadCell.update()) newDataReady = true;
+  // get smoothed value from the dataset:
+  if (newDataReady) {
+    if (millis() > t + serialPrintInterval) {
+      float weight = LoadCell.getData();
+      printLine(WEIGHT_LINE, "Gewicht: " + String(weight, 1) );
 
-  printLine(GRAM_LINE, "Gramm: " + String(toGrind));
+      if (weight >= gramsToGrind && currentGrindMode == SCALE) {
+        digitalWrite(RELAIS, STOP_GRIND);
+      } else {
+        digitalWrite(RELAIS, GRIND);
+      }
+      newDataReady = 0;
+      t = millis();
+    }
+  } 
+}
+
+void handleGrindMode(){
+   scaleModePressed = digitalRead(TASTER_SCALE_MODE);
   if (scaleModePressed) {
     if (currentGrindMode == scaleModePressed) {
       currentGrindMode = TIMER;
@@ -82,39 +113,23 @@ void loop() {
       delay(500);
     }
   }
-  // check for new data/start next conversion:
-  if (LoadCell.update()) newDataReady = true;
-  // get smoothed value from the dataset:
-  if (newDataReady) {
-    if (millis() > t + serialPrintInterval) {
-      float weight = LoadCell.getData();
-      printLine(WEIGHT_LINE, "Gewicht: " + String(weight, 1) );
 
-      if (weight >= toGrind && currentGrindMode == SCALE) {
-        digitalWrite(RELAIS, STOP_GRIND);
-      } else {
-        digitalWrite(RELAIS, GRIND);
-      }
-      newDataReady = 0;
-      t = millis();
-    }
-  }
+}
 
+int calcGramsToGrind(){
+  int gramsToGrind = 25. / 1023.*analogRead(POT);
+  printLine(GRAM_LINE, "Gramm: " + String(gramsToGrind));
+  return gramsToGrind;
+}
 
-  if (digitalRead(TASTER_TARA) == HIGH) LoadCell.tareNoDelay();
+void handleTara(){
+    if (digitalRead(TASTER_TARA) == HIGH) LoadCell.tareNoDelay();
 
   // check if last tare operation is complete:
   if (LoadCell.getTareStatus() == true) {
     printLine(STATUS_LINE, "Tare complete");
   }
-}
 
-//interrupt routine:
-void dataReadyISR() {
-
-  if (LoadCell.update()) {
-    Serial.println("interupt: " + String(LoadCell.getData()));
-  }
 }
 
 
