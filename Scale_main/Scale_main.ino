@@ -1,23 +1,24 @@
 /*
-   -------------------------------------------------------------------------------------
-   HX711_ADC
-   Arduino library for HX711 24-Bit Analog-to-Digital Converter for Weight Scales
-   Olav Kallhovd sept2017
-   -------------------------------------------------------------------------------------
-*/
+ -------------------------------------------------------------------------------------
+ HX711_ADC
+ Arduino library for HX711 24-Bit Analog-to-Digital Converter for Weight Scales
+ Olav Kallhovd sept2017
+ -------------------------------------------------------------------------------------
+ */
 /*
-   Settling time (number of samples) and data filtering can be adjusted in the config.h file
-   For calibration and storing the calibration value in eeprom, see example file "Calibration.ino"
-   The update() function checks for new data and starts the next conversion. In order to acheive maximum effective
-   sample rate, update() should be called at least as often as the HX711 sample rate; >10Hz@10SPS, >80Hz@80SPS.
-   If you have other time consuming code running (i.e. a graphical LCD), consider calling update() from an interrupt routine,
-   see example file "Read_1x_load_cell_interrupt_driven.ino".
-   This is an example sketch on how to use this library
-*/
+ Settling time (number of samples) and data filtering can be adjusted in the config.h file
+ For calibration and storing the calibration value in eeprom, see example file "Calibration.ino"
+ The update() function checks for new data and starts the next conversion. In order to acheive maximum effective
+ sample rate, update() should be called at least as often as the HX711 sample rate; >10Hz@10SPS, >80Hz@80SPS.
+ If you have other time consuming code running (i.e. a graphical LCD), consider calling update() from an interrupt routine,
+ see example file "Read_1x_load_cell_interrupt_driven.ino".
+ This is an example sketch on how to use this library
+ */
 #include <HX711_ADC.h>
 #include <EEPROM.h>
 #include <Wire.h>  // Wire Bibliothek hochladen
 #include <LiquidCrystal_I2C.h> // Vorher hinzugefügte LiquidCrystal_I2C Bibliothek hochladen
+#include <Thread.h>
 //pins:
 const int HX711_sck = 4; //mcu > HX711 sck pin
 const int HX711_dout = 2; //mcu > HX711 dout pin
@@ -36,122 +37,20 @@ const int SCALE = HIGH;
 const int GRIND = HIGH;
 const int STOP_GRIND = LOW;
 
+boolean isGrinding = false;
 
-HX711_ADC LoadCell(       HX711_dout, HX711_sck);
+HX711_ADC LoadCell(HX711_dout, HX711_sck);
 LiquidCrystal_I2C lcd(0x3F, 20, 4);
 
 long t;
+float weight = 0;
+long  previousMillis = -3;
+Thread myThread = Thread();
 int currentGrindMode = TIMER;
 int scaleModePressed = TIMER;
 
-void setup() {
-  Serial.begin(57600); delay(10);
-  Serial.println("Setup");
-
-  initLcd();
-  printLine(STATUS_LINE, "Starting...");
-  calibrateScale();
-  printLine(MODE_LINE, "TIMER MODE");
-
-
-
-
-  pinMode(TASTER_TARA, INPUT);
-  pinMode(TASTER_SCALE_MODE, INPUT);
-  pinMode(RELAIS, OUTPUT);
-  //attachInterrupt(digitalPinToInterrupt(HX711_dout), dataReadyISR, FALLING);
-
-
-}
-void loop() {
-  handleGrindMode();
-  handleGrind(calcGramsToGrind()); 
-  handleTara();
-}
-
-//interrupt routine:
-void dataReadyISR() {
-
-  if (LoadCell.update()) {
-    Serial.println("interupt: " + String(LoadCell.getData()));
-  }
-}
-
-void handleGrind(int gramsToGrind){
-  static boolean newDataReady = 0;
-  const int serialPrintInterval = 0; //increase value to slow down serial print activity
-
-  // check for new data/start next conversion:
-  if (LoadCell.update()) newDataReady = true;
-  // get smoothed value from the dataset:
-  if (newDataReady) {
-    if (millis() > t + serialPrintInterval) {
-      float weight = LoadCell.getData();
-      printLine(WEIGHT_LINE, "Gewicht: " + String(weight, 1) );
-
-      if (weight >= gramsToGrind && currentGrindMode == SCALE) {
-        digitalWrite(RELAIS, STOP_GRIND);
-      } else {
-        digitalWrite(RELAIS, GRIND);
-      }
-      newDataReady = 0;
-      t = millis();
-    }
-  } 
-}
-
-void handleGrindMode(){
-   scaleModePressed = digitalRead(TASTER_SCALE_MODE);
-  if (scaleModePressed) {
-    if (currentGrindMode == scaleModePressed) {
-      currentGrindMode = TIMER;
-      delay(500);
-      printLine(MODE_LINE, "TIMER MODE");
-    } else if (scaleModePressed == SCALE) {
-      currentGrindMode = SCALE;
-      printLine(MODE_LINE, "SCALE MODE");
-      delay(500);
-    }
-  }
-
-}
-
-int calcGramsToGrind(){
-  int gramsToGrind = 25. / 1023.*analogRead(POT);
-  printLine(GRAM_LINE, "Gramm: " + String(gramsToGrind));
-  return gramsToGrind;
-}
-
-void handleTara(){
-    if (digitalRead(TASTER_TARA) == HIGH) LoadCell.tareNoDelay();
-
-  // check if last tare operation is complete:
-  if (LoadCell.getTareStatus() == true) {
-    printLine(STATUS_LINE, "Tare complete");
-  }
-
-}
-
-
-void calibrateScale() {
-  LoadCell.begin();
-  float calibrationValue; // calibration value (see example file "Calibration.ino")
-  calibrationValue = 472.78; // uncomment this if you want to set the calibration value in the sketch
-  long stabilizingtime = 2000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
-  boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
-  LoadCell.start(stabilizingtime, _tare);
-  if (LoadCell.getTareTimeoutFlag()) {
-    printLine(STATUS_LINE, "Timeout, check MCU>HX711 wiring and pin designations");
-    while (1);
-  }
-  else {
-    LoadCell.setCalFactor(calibrationValue); // set calibration value (float)
-    printLine(STATUS_LINE, "Startup is complete");
-  }
-}
-
 void printLine(int line, String text) {
-  Serial.println(text);
+//  Serial.println(text);
   lcd.setCursor(0, line);
   if (line == STATUS_LINE) {
     lcd.setCursor(0, line); //Text soll beim ersten Zeichen in der ersten Reihe beginnen..
@@ -167,4 +66,134 @@ void initLcd() {
   lcd.init();
   lcd.backlight();
   lcd.noBlink();
+}
+
+//interrupt routine:
+void dataReadyISR() {
+
+  if (LoadCell.update()) {
+    Serial.println("interupt: " + String(LoadCell.getData()));
+  }
+}
+
+void handleGrind(int gramsToGrind) {
+
+   long currentMillis = millis();
+  printLine(WEIGHT_LINE, "Gewicht: " + String(weight, 1));
+
+  if (weight >= (gramsToGrind * 0.8) &&weight <= gramsToGrind && currentGrindMode == SCALE) {
+    if (weight <= gramsToGrind) {
+      if (currentMillis- previousMillis >= 2000 && !isGrinding) {
+        digitalWrite(RELAIS, GRIND);
+        isGrinding = true;
+        previousMillis = millis();
+      } else if (currentMillis- previousMillis >= 1000 && isGrinding) {
+        digitalWrite(RELAIS, STOP_GRIND);
+        isGrinding = false;
+        previousMillis = millis();
+      }
+    }
+  } else if (weight <= gramsToGrind && !isGrinding) {
+    digitalWrite(RELAIS, GRIND);
+    isGrinding = true;
+  } else if(weight >= gramsToGrind && isGrinding){
+    digitalWrite(RELAIS, STOP_GRIND );
+    isGrinding = false;
+  }
+}
+
+void handleGrindMode() {
+  scaleModePressed = digitalRead(TASTER_SCALE_MODE);
+  if (scaleModePressed) {
+    if (currentGrindMode == scaleModePressed) {
+      currentGrindMode = TIMER;
+      delay(500);
+      printLine(MODE_LINE, "TIMER MODE");
+    } else if (scaleModePressed == SCALE) {
+      currentGrindMode = SCALE;
+      printLine(MODE_LINE, "SCALE MODE");
+      delay(500);
+    }
+  }
+}
+
+int calcGramsToGrind() {
+  int gramsToGrind = 25. / 1023. * analogRead(POT);
+  printLine(GRAM_LINE, "Gramm: " + String(gramsToGrind)+"    ");
+  return gramsToGrind;
+}
+
+void handleTara() {
+  if (digitalRead(TASTER_TARA) == HIGH)
+    LoadCell.tareNoDelay();
+
+  // check if last tare operation is complete:
+  if (LoadCell.getTareStatus() == true) {
+    printLine(STATUS_LINE, "Tare complete");
+  }
+
+}
+
+void calibrateScale() {
+  LoadCell.begin();
+  float calibrationValue; // calibration value (see example file "Calibration.ino")
+  calibrationValue = 472.78; // uncomment this if you want to set the calibration value in the sketch
+  long stabilizingtime = 2000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
+  boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
+  LoadCell.start(stabilizingtime, _tare);
+  if (LoadCell.getTareTimeoutFlag()) {
+    printLine(STATUS_LINE,
+        "Timeout, check MCU>HX711 wiring and pin designations");
+    while (1)
+      ;
+  } else {
+    LoadCell.setCalFactor(calibrationValue); // set calibration value (float)
+    printLine(STATUS_LINE, "Startup is complete");
+  }
+}
+
+void readScale() {
+  static boolean newDataReady = 0;
+  const int serialPrintInterval = 0; //increase value to slow down serial print activity
+
+  // check for new data/start next conversion:
+  if (LoadCell.update())
+    newDataReady = true;
+  // get smoothed value from the dataset:
+  if (newDataReady) {
+    if (millis() > t + serialPrintInterval) {
+      weight = LoadCell.getData();
+      newDataReady = 0;
+      t = millis();
+    }
+  }
+  printLine(WEIGHT_LINE, "Gewicht: " + String(weight, 1));
+
+}
+
+void setup() {
+  Serial.begin(57600);
+  delay(10);
+  Serial.println("Setup");
+
+  initLcd();
+  printLine(STATUS_LINE, "Starting...");
+  calibrateScale();
+  printLine(MODE_LINE, "TIMER MODE");
+
+  pinMode(TASTER_TARA, INPUT);
+  pinMode(TASTER_SCALE_MODE, INPUT);
+  pinMode(RELAIS, OUTPUT);
+
+  myThread.onRun(readScale);
+  myThread.setInterval(50);
+
+}
+
+void loop() {
+  if (myThread.shouldRun())
+    myThread.run();
+  handleGrindMode();
+  handleGrind(calcGramsToGrind());
+  handleTara();
 }
