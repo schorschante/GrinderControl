@@ -81,13 +81,13 @@ void handleGrind(int gramsToGrind) {
    long currentMillis = millis();
   printLine(WEIGHT_LINE, "Gewicht: " + String(weight, 1));
 
-  if (weight >= (gramsToGrind * 0.8) &&weight <= gramsToGrind && currentGrindMode == SCALE) {
+  if (weight >= (gramsToGrind * 0.85) &&weight <= gramsToGrind && currentGrindMode == SCALE) {
     if (weight <= gramsToGrind) {
-      if (currentMillis- previousMillis >= 2000 && !isGrinding) {
+      if (currentMillis- previousMillis >= 1900 && !isGrinding) {
         digitalWrite(RELAIS, GRIND);
         isGrinding = true;
         previousMillis = millis();
-      } else if (currentMillis- previousMillis >= 1000 && isGrinding) {
+      } else if (currentMillis- previousMillis >= 250 && isGrinding) {
         digitalWrite(RELAIS, STOP_GRIND);
         isGrinding = false;
         previousMillis = millis();
