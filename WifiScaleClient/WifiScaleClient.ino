@@ -1,69 +1,58 @@
-/**
-   BasicHTTPSClient.ino
-
-    Created on: 20.08.2018
-
-*/
-
-#include <Arduino.h>
-
 #include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
+#include <WiFiUdp.h>
 
-#include <ESP8266HTTPClient.h>
+// Set WiFi credentials
+#define WIFI_SSID "TheOtherESP"
+#define WIFI_PASS "flashmeifyoucan"
 
-
-ESP8266WiFiMulti WiFiMulti;
+// UDP
+WiFiUDP UDP; // @suppress("Abstract class cannot be instantiated")
+IPAddress remote_IP(192,168,4,100);
+#define UDP_PORT 4210
 
 void setup() {
 
-  Serial.begin(57600);
-  // Serial.setDebugOutput(true);
+  // Setup IO
+  pinMode(2, INPUT);
 
-  Serial.println();
-  Serial.println();
+  // Setup serial port
+  Serial.begin(115200);
   Serial.println();
 
+  // Begin WiFi
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
   WiFi.mode(WIFI_STA);
-  WiFiMulti.addAP("astral", "12345678");
+
+  // Connecting to WiFi...
+  Serial.print("Connecting to ");
+  Serial.print(WIFI_SSID);
+  // Loop continuously while WiFi is not connected
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(100);
+    Serial.print(".");
+  }
+
+  // Connected to WiFi
+  Serial.println();
+  Serial.print("Connected! IP address: ");
+  Serial.println(WiFi.localIP());
+
+  // Begin UDP port
+  UDP.begin(UDP_PORT);
+  Serial.print("Opening UDP port ");
+  Serial.println(UDP_PORT);
+
 }
 
 void loop() {
-  // wait for WiFi connection
-  if ((WiFiMulti.run() == WL_CONNECTED)) {
 
+  // Read button
 
+  // Send Packet
+  UDP.beginPacket(remote_IP, UDP_PORT);
+  UDP.write("test");
+  UDP.endPacket();
+  delay(100);
 
-    HTTPClient https;
-    WiFiClient client; // @suppress("Abstract class cannot be instantiated")
-
-    Serial.print("[HTTPS] begin...\n");
-    if (https.begin(client, "http://192.168.4.1/on.html")) {  // HTTPS
-
-      Serial.print("[HTTPS] GET...\n");
-      // start connection and send HTTP header
-      int httpCode = https.GET();
-
-      // httpCode will be negative on error
-      if (httpCode > 0) {
-        // HTTP header has been send and Server response header has been handled
-        Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
-
-        // file found at server
-        if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-          String payload = https.getString();
-          Serial.println(payload);
-        }
-      } else {
-        Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
-      }
-
-      https.end();
-    } else {
-      Serial.printf("[HTTPS] Unable to connect\n");
-    }
-  }
-
-  Serial.println("Wait 10s before next round...");
-  delay(10000);
 }
