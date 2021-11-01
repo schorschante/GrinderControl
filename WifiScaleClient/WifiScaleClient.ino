@@ -4,6 +4,7 @@
 // Set WiFi credentials
 #define WIFI_SSID "TheOtherESP"
 #define WIFI_PASS "flashmeifyoucan"
+char incomingPacket[255];  // buffer for incoming packets
 
 // UDP
 WiFiUDP UDP; // @suppress("Abstract class cannot be instantiated")
@@ -54,5 +55,19 @@ void loop() {
   UDP.write("test");
   UDP.endPacket();
   delay(100);
+
+  int packetSize = UDP.parsePacket();
+  	  if (packetSize)
+  	  {
+  	    // receive incoming UDP packets
+  	    Serial.printf("Received %d bytes from %s, port %d\n", packetSize, UDP.remoteIP().toString().c_str(), UDP.remotePort());
+  	    int len = UDP.read(incomingPacket, 255);
+  	    if (len > 0)
+  	    {
+  	      incomingPacket[len] = 0;
+  	    }
+  	    Serial.printf("UDP packet contents: %s\n", incomingPacket);
+
+  	  }
 
 }
